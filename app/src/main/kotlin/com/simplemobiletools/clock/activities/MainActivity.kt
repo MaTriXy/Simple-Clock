@@ -23,7 +23,6 @@ import com.simplemobiletools.commons.models.FAQItem
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : SimpleActivity() {
-    private var storedUseEnglish = false
     private var storedTextColor = 0
     private var storedBackgroundColor = 0
     private var storedPrimaryColor = 0
@@ -31,7 +30,7 @@ class MainActivity : SimpleActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        appLaunched()
+        appLaunched(BuildConfig.APPLICATION_ID)
 
         // just get a reference to the database to make sure it is created properly
         dbHelper
@@ -48,11 +47,6 @@ class MainActivity : SimpleActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (storedUseEnglish != config.useEnglish) {
-            restartActivity()
-            return
-        }
-
         val configTextColor = config.textColor
         if (storedTextColor != configTextColor) {
             getInactiveTabIndexes(view_pager.currentItem).forEach {
@@ -84,8 +78,8 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onStop() {
+        super.onStop()
         config.lastUsedViewPagerPage = view_pager.currentItem
     }
 
@@ -114,7 +108,6 @@ class MainActivity : SimpleActivity() {
             storedTextColor = textColor
             storedBackgroundColor = backgroundColor
             storedPrimaryColor = primaryColor
-            storedUseEnglish = useEnglish
         }
     }
 
@@ -133,6 +126,10 @@ class MainActivity : SimpleActivity() {
             TAB_ALARM -> getViewPagerAdapter()?.updateAlarmTabAlarmSound(newAlarmSound)
             TAB_TIMER -> getViewPagerAdapter()?.updateTimerTabAlarmSound(newAlarmSound)
         }
+    }
+
+    fun updateClockTabAlarm() {
+        getViewPagerAdapter()?.updateClockTabAlarm()
     }
 
     private fun getViewPagerAdapter() = view_pager.adapter as? ViewPagerAdapter
@@ -182,6 +179,8 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun launchAbout() {
+        val licenses = LICENSE_STETHO or LICENSE_NUMBER_PICKER
+
         val faqItems = arrayListOf(
                 FAQItem(R.string.faq_1_title, R.string.faq_1_text),
                 FAQItem(R.string.faq_1_title_commons, R.string.faq_1_text_commons),
@@ -189,6 +188,6 @@ class MainActivity : SimpleActivity() {
                 FAQItem(R.string.faq_2_title_commons, R.string.faq_2_text_commons)
         )
 
-        startAboutActivity(R.string.app_name, LICENSE_STETHO or LICENSE_NUMBER_PICKER, BuildConfig.VERSION_NAME, faqItems)
+        startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
     }
 }

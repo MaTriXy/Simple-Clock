@@ -22,14 +22,18 @@ class AlarmsAdapter(activity: SimpleActivity, var alarms: ArrayList<Alarm>, val 
                     recyclerView: MyRecyclerView, itemClick: (Any) -> Unit) : MyRecyclerViewAdapter(activity, recyclerView, null, itemClick) {
     private val adjustedPrimaryColor = activity.getAdjustedPrimaryColor()
 
+    init {
+        setupDragListener(true)
+    }
+
     override fun getActionMenuId() = R.menu.cab_alarms
 
     override fun prepareActionMode(menu: Menu) {}
 
-    override fun prepareItemSelection(view: View) {}
+    override fun prepareItemSelection(viewHolder: ViewHolder) {}
 
-    override fun markItemSelection(select: Boolean, view: View?) {
-        view?.alarm_frame?.isSelected = select
+    override fun markViewHolderSelection(select: Boolean, viewHolder: ViewHolder?) {
+        viewHolder?.itemView?.alarm_frame?.isSelected = select
     }
 
     override fun actionItemPressed(id: Int) {
@@ -44,11 +48,13 @@ class AlarmsAdapter(activity: SimpleActivity, var alarms: ArrayList<Alarm>, val 
 
     override fun getSelectableItemCount() = alarms.size
 
+    override fun getIsItemSelectable(position: Int) = true
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = createViewHolder(R.layout.item_alarm, parent)
 
     override fun onBindViewHolder(holder: MyRecyclerViewAdapter.ViewHolder, position: Int) {
         val alarm = alarms[position]
-        val view = holder.bindView(alarm, true) { itemView, layoutPosition ->
+        val view = holder.bindView(alarm, true, true) { itemView, layoutPosition ->
             setupView(itemView, alarm)
         }
         bindViewHolder(holder, position, view)
@@ -88,7 +94,7 @@ class AlarmsAdapter(activity: SimpleActivity, var alarms: ArrayList<Alarm>, val 
 
             alarm_switch.isChecked = alarm.isEnabled
             alarm_switch.setColors(textColor, adjustedPrimaryColor, backgroundColor)
-            alarm_switch.setOnClickListener {
+            alarm_switch.setOnCheckedChangeListener { buttonView, isChecked ->
                 if (alarm.days > 0) {
                     if (activity.config.wasAlarmWarningShown) {
                         toggleAlarmInterface.alarmToggled(alarm.id, alarm_switch.isChecked)

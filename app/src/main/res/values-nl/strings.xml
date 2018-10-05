@@ -13,6 +13,7 @@
     <string name="time_expired">Tijd verstreken</string>
     <string name="clock_and_date">Klok en datum</string>
     <string name="use_text_shadow">Gebruik tekst schaduw</string>
+    <string name="swipe_right_to_dismiss">Swipe right to Dismiss, or left to Snooze.</string>
 
     <!-- Settings -->
     <string name="clock_tab">Klok tab</string>
@@ -20,6 +21,7 @@
     <string name="stopwatch_tab">Stopwatch tab</string>
     <string name="timer_tab">Timer tab</string>
     <string name="show_seconds">Laat seconden zien</string>
+    <string name="increase_volume_gradually">Increase volume gradually</string>
 
     <!-- FAQ -->
     <string name="faq_1_title">Hoe kan ik ronde tijden sorteren op de stopwatch tab?</string>

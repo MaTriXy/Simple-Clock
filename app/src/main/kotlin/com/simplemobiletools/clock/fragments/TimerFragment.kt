@@ -1,12 +1,19 @@
 package com.simplemobiletools.clock.fragments
 
+import android.annotation.TargetApi
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.SystemClock
 import android.support.v4.app.Fragment
+import android.support.v4.app.NotificationCompat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,14 +23,20 @@ import com.simplemobiletools.clock.activities.SimpleActivity
 import com.simplemobiletools.clock.dialogs.MyTimePickerDialogDialog
 import com.simplemobiletools.clock.extensions.*
 import com.simplemobiletools.clock.helpers.PICK_AUDIO_FILE_INTENT_ID
+import com.simplemobiletools.clock.helpers.TIMER_NOTIF_ID
 import com.simplemobiletools.commons.dialogs.SelectAlarmSoundDialog
 import com.simplemobiletools.commons.extensions.*
 import com.simplemobiletools.commons.helpers.ALARM_SOUND_TYPE_ALARM
+import com.simplemobiletools.commons.helpers.isLollipopPlus
+import com.simplemobiletools.commons.helpers.isOreoPlus
 import com.simplemobiletools.commons.models.AlarmSound
 import kotlinx.android.synthetic.main.fragment_timer.view.*
 
 class TimerFragment : Fragment() {
     private val UPDATE_INTERVAL = 1000L
+    private val WAS_RUNNING = "was_running"
+    private val CURRENT_TICKS = "current_ticks"
+    private val TOTAL_TICKS = "total_ticks"
 
     private var isRunning = false
     private var uptimeAtStart = 0L
@@ -68,7 +81,7 @@ class TimerFragment : Fragment() {
             }
 
             timer_sound.setOnClickListener {
-                SelectAlarmSoundDialog(activity as SimpleActivity, config.timerSoundUri, AudioManager.STREAM_SYSTEM, PICK_AUDIO_FILE_INTENT_ID,
+                SelectAlarmSoundDialog(activity as SimpleActivity, config.timerSoundUri, AudioManager.STREAM_ALARM, PICK_AUDIO_FILE_INTENT_ID,
                         ALARM_SOUND_TYPE_ALARM, true, onAlarmPicked = {
                     if (it != null) {
                         updateAlarmSound(it)
@@ -101,15 +114,39 @@ class TimerFragment : Fragment() {
     override fun onStop() {
         super.onStop()
         isForegrounded = false
+        context!!.hideNotification(TIMER_NOTIF_ID)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isRunning) {
+        if (isRunning && activity?.isChangingConfigurations == false) {
             context?.toast(R.string.timer_stopped)
         }
         isRunning = false
         updateHandler.removeCallbacks(updateRunnable)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.apply {
+            putBoolean(WAS_RUNNING, isRunning)
+            putInt(TOTAL_TICKS, totalTicks)
+            putInt(CURRENT_TICKS, currentTicks)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onViewStateRestored(savedInstanceState: Bundle?) {
+        super.onViewStateRestored(savedInstanceState)
+        savedInstanceState?.apply {
+            isRunning = getBoolean(WAS_RUNNING, false)
+            totalTicks = getInt(TOTAL_TICKS, 0)
+            currentTicks = getInt(CURRENT_TICKS, 0)
+
+            if (isRunning) {
+                uptimeAtStart = SystemClock.uptimeMillis() - currentTicks * UPDATE_INTERVAL
+                updateTimerState(false)
+            }
+        }
     }
 
     fun updateAlarmSound(alarmSound: AlarmSound) {
@@ -142,13 +179,19 @@ class TimerFragment : Fragment() {
 
     private fun togglePlayPause() {
         isRunning = !isRunning
+        updateTimerState(true)
+    }
+
+    private fun updateTimerState(setUptimeAtStart: Boolean) {
         updateIcons()
         context!!.hideTimerNotification()
 
         if (isRunning) {
             updateHandler.post(updateRunnable)
-            uptimeAtStart = SystemClock.uptimeMillis()
             view.timer_reset.beVisible()
+            if (setUptimeAtStart) {
+                uptimeAtStart = SystemClock.uptimeMillis()
+            }
         } else {
             updateHandler.removeCallbacksAndMessages(null)
             currentTicks = 0
@@ -197,8 +240,42 @@ class TimerFragment : Fragment() {
                     activity?.startActivity(this)
                 }
             }
+        } else if (diff > 0 && !isForegrounded && isRunning) {
+            showNotification(formattedDuration)
         }
+
         return true
+    }
+
+    @TargetApi(Build.VERSION_CODES.O)
+    private fun showNotification(formattedDuration: String) {
+        val channelId = "simple_alarm_timer"
+        val label = getString(R.string.timer)
+        val notificationManager = context!!.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (isOreoPlus()) {
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            NotificationChannel(channelId, label, importance).apply {
+                setSound(null, null)
+                notificationManager.createNotificationChannel(this)
+            }
+        }
+
+        val builder = NotificationCompat.Builder(context)
+                .setContentTitle(label)
+                .setContentText(formattedDuration)
+                .setSmallIcon(R.drawable.ic_timer)
+                .setContentIntent(context!!.getOpenTimerTabIntent())
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setSound(null)
+                .setOngoing(true)
+                .setAutoCancel(true)
+                .setChannelId(channelId)
+
+        if (isLollipopPlus()) {
+            builder.setVisibility(Notification.VISIBILITY_PUBLIC)
+        }
+
+        notificationManager.notify(TIMER_NOTIF_ID, builder.build())
     }
 
     private val updateRunnable = object : Runnable {

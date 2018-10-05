@@ -7,19 +7,19 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.os.Bundle
 import android.widget.RemoteViews
 import com.simplemobiletools.clock.R
 import com.simplemobiletools.clock.activities.SplashActivity
 import com.simplemobiletools.clock.extensions.*
-import com.simplemobiletools.commons.extensions.getColoredBitmap
-import com.simplemobiletools.commons.extensions.setBackgroundColor
-import com.simplemobiletools.commons.extensions.setText
-import com.simplemobiletools.commons.extensions.setVisibleIf
+import com.simplemobiletools.commons.extensions.*
+import com.simplemobiletools.commons.helpers.isOreoPlus
 import java.util.*
 
 class MyWidgetDateTimeProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
         performUpdate(context)
         context.scheduleNextWidgetUpdate()
     }
@@ -32,8 +32,7 @@ class MyWidgetDateTimeProvider : AppWidgetProvider() {
     private fun performUpdate(context: Context) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
         appWidgetManager.getAppWidgetIds(getComponentName(context)).forEach {
-            val layout = if (context.config.useTextShadow) R.layout.widget_date_time_with_shadow else R.layout.widget_date_time
-            RemoteViews(context.packageName, layout).apply {
+            RemoteViews(context.packageName, getProperLayout(context)).apply {
                 updateTexts(context, this)
                 updateColors(context, this)
                 setupAppOpenIntent(context, this)
@@ -42,25 +41,28 @@ class MyWidgetDateTimeProvider : AppWidgetProvider() {
         }
     }
 
+    private fun getProperLayout(context: Context) = if (context.config.useTextShadow) {
+        if (isOreoPlus()) {
+            R.layout.widget_date_time_with_shadow
+        } else {
+            R.layout.widget_date_time_with_shadow_pre_oreo
+        }
+    } else {
+        if (isOreoPlus()) {
+            R.layout.widget_date_time
+        } else {
+            R.layout.widget_date_time_pre_oreo
+        }
+    }
+
     private fun updateTexts(context: Context, views: RemoteViews) {
-        val calendar = Calendar.getInstance()
-        val use24HourFormat = context.config.use24HourFormat
-
         val timeText = context.getFormattedTime(getPassedSeconds(), false, false).toString()
+        val nextAlarm = getFormattedNextAlarm(context)
         views.apply {
-            if (use24HourFormat) {
-                setText(R.id.widget_time, timeText)
-            } else {
-                val timeParts = timeText.split(" ")
-                setText(R.id.widget_time, timeParts[0])
-                setText(R.id.widget_time_am_pm, " ${timeParts[1]}")
-            }
-            setText(R.id.widget_date, context.getFormattedDate(calendar))
-            setVisibleIf(R.id.widget_time_am_pm, !use24HourFormat)
-
-            val nextAlarm = getFormattedNextAlarm(context)
-            setVisibleIf(R.id.widget_alarm_holder, nextAlarm.isNotEmpty())
+            setText(R.id.widget_time, timeText)
+            setText(R.id.widget_date, context.getFormattedDate(Calendar.getInstance()))
             setText(R.id.widget_next_alarm, nextAlarm)
+            setVisibleIf(R.id.widget_alarm_holder, nextAlarm.isNotEmpty())
         }
     }
 
@@ -72,7 +74,6 @@ class MyWidgetDateTimeProvider : AppWidgetProvider() {
         views.apply {
             setBackgroundColor(R.id.widget_date_time_holder, widgetBgColor)
             setTextColor(R.id.widget_time, widgetTextColor)
-            setTextColor(R.id.widget_time_am_pm, widgetTextColor)
             setTextColor(R.id.widget_date, widgetTextColor)
             setTextColor(R.id.widget_next_alarm, widgetTextColor)
 
@@ -88,7 +89,7 @@ class MyWidgetDateTimeProvider : AppWidgetProvider() {
     private fun getComponentName(context: Context) = ComponentName(context, this::class.java)
 
     private fun setupAppOpenIntent(context: Context, views: RemoteViews) {
-        Intent(context, SplashActivity::class.java).apply {
+        (context.getLaunchIntent() ?: Intent(context, SplashActivity::class.java)).apply {
             putExtra(OPEN_TAB, TAB_CLOCK)
             val pendingIntent = PendingIntent.getActivity(context, OPEN_APP_INTENT_ID, this, PendingIntent.FLAG_UPDATE_CURRENT)
             views.setOnClickPendingIntent(R.id.widget_date_time_holder, pendingIntent)
@@ -129,7 +130,12 @@ class MyWidgetDateTimeProvider : AppWidgetProvider() {
         }
     }
 
-    fun getMultiplyColoredBitmap(resourceId: Int, newColor: Int, context: Context): Bitmap {
+    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle?) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        performUpdate(context)
+    }
+
+    private fun getMultiplyColoredBitmap(resourceId: Int, newColor: Int, context: Context): Bitmap {
         val options = BitmapFactory.Options()
         options.inMutable = true
         val bmp = BitmapFactory.decodeResource(context.resources, resourceId, options)

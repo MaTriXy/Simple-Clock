@@ -17,7 +17,7 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:text="Timer expired"/>
+        tools:text="@string/time_expired"/>
 
     <com.simplemobiletools.commons.views.MyTextView
         android:id="@+id/reminder_text"
@@ -32,18 +32,67 @@
 
     <ImageView
         android:id="@+id/reminder_snooze"
-        style="@style/MyBorderlessBackgroundStyle"
-        android:layout_width="@dimen/stopwatch_button_small_size"
-        android:layout_height="@dimen/stopwatch_button_small_size"
-        android:layout_alignParentBottom="true"
-        android:layout_toLeftOf="@+id/reminder_stop"
-        android:padding="@dimen/normal_margin"
+        android:layout_width="@dimen/reminder_background_min_size"
+        android:layout_height="@dimen/reminder_background_min_size"
+        android:clickable="false"
+        android:padding="@dimen/activity_margin"
         android:src="@drawable/ic_snooze_big"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/reminder_stop"
-        app:layout_constraintEnd_toStartOf="@+id/reminder_stop"
+        app:layout_constraintBottom_toBottomOf="@+id/reminder_draggable"
+        app:layout_constraintEnd_toStartOf="@+id/reminder_draggable"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/reminder_stop"/>
+        app:layout_constraintTop_toTopOf="@+id/reminder_draggable"/>
+
+    <ImageView
+        android:id="@+id/reminder_draggable_background"
+        android:layout_width="@dimen/reminder_background_min_size"
+        android:layout_height="@dimen/reminder_background_min_size"
+        android:layout_marginBottom="@dimen/activity_margin"
+        android:alpha="0.2"
+        android:padding="@dimen/medium_margin"
+        android:src="@drawable/pulsing_background"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/reminder_dismiss"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/reminder_snooze"
+        app:layout_constraintTop_toBottomOf="@+id/reminder_text"/>
+
+    <ImageView
+        android:id="@+id/reminder_draggable"
+        android:layout_width="@dimen/reminder_background_min_size"
+        android:layout_height="@dimen/reminder_background_min_size"
+        android:layout_marginBottom="@dimen/activity_margin"
+        android:padding="@dimen/activity_margin"
+        android:src="@drawable/ic_alarm_big"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/reminder_dismiss"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/reminder_snooze"
+        app:layout_constraintTop_toBottomOf="@+id/reminder_text"/>
+
+    <ImageView
+        android:id="@+id/reminder_dismiss"
+        android:layout_width="@dimen/reminder_background_min_size"
+        android:layout_height="@dimen/reminder_background_min_size"
+        android:clickable="false"
+        android:padding="@dimen/activity_margin"
+        android:src="@drawable/ic_dismiss_alarm_big"
+        app:layout_constraintBottom_toBottomOf="@+id/reminder_draggable"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/reminder_draggable"
+        app:layout_constraintTop_toTopOf="@+id/reminder_draggable"/>
+
+    <com.simplemobiletools.commons.views.MyTextView
+        android:id="@+id/reminder_guide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0"
+        android:text="@string/swipe_right_to_dismiss"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/reminder_draggable"/>
 
     <ImageView
         android:id="@+id/reminder_stop"

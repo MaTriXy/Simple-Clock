@@ -10,6 +10,8 @@ import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.simplemobiletools.clock.R
 import com.simplemobiletools.clock.activities.SimpleActivity
 import com.simplemobiletools.clock.adapters.StopwatchAdapter
@@ -25,6 +27,13 @@ import kotlinx.android.synthetic.main.fragment_stopwatch.view.*
 
 class StopwatchFragment : Fragment() {
     private val UPDATE_INTERVAL = 10L
+    private val WAS_RUNNING = "was_running"
+    private val TOTAL_TICKS = "total_ticks"
+    private val CURRENT_TICKS = "current_ticks"
+    private val LAP_TICKS = "lap_ticks"
+    private val CURRENT_LAP = "current_lap"
+    private val LAPS = "laps"
+    private val SORTING = "sorting"
 
     private val updateHandler = Handler()
     private var uptimeAtStart = 0L
@@ -124,7 +133,7 @@ class StopwatchFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isRunning) {
+        if (isRunning && activity?.isChangingConfigurations == false) {
             context?.toast(R.string.stopwatch_stopped)
         }
         isRunning = false
@@ -133,6 +142,44 @@ class StopwatchFragment : Fragment() {
 
     private fun storeStateVariables() {
         storedTextColor = context!!.config.textColor
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.apply {
+            putBoolean(WAS_RUNNING, isRunning)
+            putInt(TOTAL_TICKS, totalTicks)
+            putInt(CURRENT_TICKS, currentTicks)
+            putInt(LAP_TICKS, lapTicks)
+            putInt(CURRENT_LAP, currentLap)
+            putInt(SORTING, sorting)
+            putString(LAPS, Gson().toJson(laps))
+            super.onSaveInstanceState(this)
+        }
+    }
+
+    override fun onViewStateRestored(savedInstanceState: Bundle?) {
+        super.onViewStateRestored(savedInstanceState)
+        savedInstanceState?.apply {
+            isRunning = getBoolean(WAS_RUNNING, false)
+            totalTicks = getInt(TOTAL_TICKS, 0)
+            currentTicks = getInt(CURRENT_TICKS, 0)
+            lapTicks = getInt(LAP_TICKS, 0)
+            currentLap = getInt(CURRENT_LAP, 0)
+            sorting = getInt(SORTING, SORT_BY_LAP or SORT_DESCENDING)
+
+            val lapsToken = object : TypeToken<List<Lap>>() {}.type
+            laps = Gson().fromJson<ArrayList<Lap>>(getString(LAPS), lapsToken)
+
+            if (laps.isNotEmpty()) {
+                view.stopwatch_sorting_indicators_holder.beVisibleIf(laps.isNotEmpty())
+                updateSorting()
+            }
+
+            if (isRunning) {
+                uptimeAtStart = SystemClock.uptimeMillis() - currentTicks * UPDATE_INTERVAL
+                updateStopwatchState(false)
+            }
+        }
     }
 
     private fun setupViews() {
@@ -155,13 +202,19 @@ class StopwatchFragment : Fragment() {
 
     private fun togglePlayPause() {
         isRunning = !isRunning
+        updateStopwatchState(true)
+    }
+
+    private fun updateStopwatchState(setUptimeAtStart: Boolean) {
         updateIcons()
         view.stopwatch_lap.beVisibleIf(isRunning)
 
         if (isRunning) {
             updateHandler.post(updateRunnable)
-            uptimeAtStart = SystemClock.uptimeMillis()
             view.stopwatch_reset.beVisible()
+            if (setUptimeAtStart) {
+                uptimeAtStart = SystemClock.uptimeMillis()
+            }
         } else {
             val prevSessionsMS = (totalTicks - currentTicks) * UPDATE_INTERVAL
             val totalDuration = SystemClock.uptimeMillis() - uptimeAtStart + prevSessionsMS
@@ -204,7 +257,10 @@ class StopwatchFragment : Fragment() {
         } else {
             clickedValue or SORT_DESCENDING
         }
+        updateSorting()
+    }
 
+    private fun updateSorting() {
         updateSortingIndicators()
         Lap.sorting = sorting
         updateLaps()

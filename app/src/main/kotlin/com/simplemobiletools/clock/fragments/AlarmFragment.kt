@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.simplemobiletools.clock.R
+import com.simplemobiletools.clock.activities.MainActivity
 import com.simplemobiletools.clock.activities.SimpleActivity
 import com.simplemobiletools.clock.adapters.AlarmsAdapter
 import com.simplemobiletools.clock.dialogs.EditAlarmDialog
@@ -66,13 +67,12 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
     }
 
     private fun setupAlarms() {
-        alarms = context!!.dbHelper.getAlarms()
+        alarms = context?.dbHelper?.getAlarms() ?: return
         val currAdapter = view.alarms_list.adapter
         if (currAdapter == null) {
             AlarmsAdapter(activity as SimpleActivity, alarms, this, view.alarms_list) {
                 openEditAlarm(it as Alarm)
             }.apply {
-                setupDragListener(true)
                 view.alarms_list.adapter = this
             }
         } else {
@@ -82,11 +82,11 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
 
     private fun openEditAlarm(alarm: Alarm) {
         currentEditAlarmDialog = EditAlarmDialog(activity as SimpleActivity, alarm) {
+            alarm.id = it
             currentEditAlarmDialog = null
             setupAlarms()
             checkAlarmState(alarm)
         }
-
     }
 
     override fun alarmToggled(id: Int, isEnabled: Boolean) {
@@ -102,10 +102,11 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
 
     private fun checkAlarmState(alarm: Alarm) {
         if (alarm.isEnabled) {
-            context!!.scheduleNextAlarm(alarm, true)
+            context?.scheduleNextAlarm(alarm, true)
         } else {
-            context!!.cancelAlarmClock(alarm)
+            context?.cancelAlarmClock(alarm)
         }
+        (activity as? MainActivity)?.updateClockTabAlarm()
     }
 
     fun updateAlarmSound(alarmSound: AlarmSound) {
