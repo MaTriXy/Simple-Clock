@@ -1,11 +1,42 @@
 package com.simplemobiletools.clock.extensions
 
-import android.app.Activity
-import android.view.WindowManager
+import com.simplemobiletools.clock.BuildConfig
+import com.simplemobiletools.commons.activities.BaseSimpleActivity
+import com.simplemobiletools.commons.dialogs.PermissionRequiredDialog
+import com.simplemobiletools.commons.extensions.canUseFullScreenIntent
+import com.simplemobiletools.commons.extensions.openFullScreenIntentSettings
+import com.simplemobiletools.commons.extensions.openNotificationSettings
 
-fun Activity.showOverLockscreen() {
-    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+fun BaseSimpleActivity.handleFullScreenNotificationsPermission(
+    notificationsCallback: (granted: Boolean) -> Unit,
+) {
+    handleNotificationPermission { granted ->
+        if (granted) {
+            if (canUseFullScreenIntent()) {
+                notificationsCallback(true)
+            } else {
+                PermissionRequiredDialog(
+                    activity = this,
+                    textId = com.simplemobiletools.commons.R.string.allow_full_screen_notifications_reminders,
+                    positiveActionCallback = {
+                        openFullScreenIntentSettings(BuildConfig.APPLICATION_ID)
+                    },
+                    negativeActionCallback = {
+                        notificationsCallback(false)
+                    }
+                )
+            }
+        } else {
+            PermissionRequiredDialog(
+                activity = this,
+                textId = com.simplemobiletools.commons.R.string.allow_notifications_reminders,
+                positiveActionCallback = {
+                    openNotificationSettings()
+                },
+                negativeActionCallback = {
+                    notificationsCallback(false)
+                }
+            )
+        }
+    }
 }

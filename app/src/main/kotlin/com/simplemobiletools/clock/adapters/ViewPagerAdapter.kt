@@ -1,25 +1,28 @@
 package com.simplemobiletools.clock.adapters
 
-import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentManager
-import android.support.v4.app.FragmentStatePagerAdapter
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentStatePagerAdapter
 import com.simplemobiletools.clock.fragments.AlarmFragment
 import com.simplemobiletools.clock.fragments.ClockFragment
 import com.simplemobiletools.clock.fragments.StopwatchFragment
 import com.simplemobiletools.clock.fragments.TimerFragment
-import com.simplemobiletools.clock.helpers.TABS_COUNT
-import com.simplemobiletools.clock.helpers.TAB_ALARM
-import com.simplemobiletools.clock.helpers.TAB_CLOCK
-import com.simplemobiletools.clock.helpers.TAB_TIMER
+import com.simplemobiletools.clock.helpers.*
 import com.simplemobiletools.commons.models.AlarmSound
 
 class ViewPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
     private val fragments = HashMap<Int, Fragment>()
 
     override fun getItem(position: Int): Fragment {
-        val fragment = getFragment(position)
-        fragments[position] = fragment
+        return getFragment(position)
+    }
+
+    override fun instantiateItem(container: ViewGroup, position: Int): Any {
+        val fragment = super.instantiateItem(container, position)
+        if (fragment is Fragment) {
+            fragments[position] = fragment
+        }
         return fragment
     }
 
@@ -38,6 +41,10 @@ class ViewPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
         else -> throw RuntimeException("Trying to fetch unknown fragment id $position")
     }
 
+    fun showAlarmSortDialog() {
+        (fragments[TAB_ALARM] as? AlarmFragment)?.showSortingDialog()
+    }
+
     fun updateClockTabAlarm() {
         (fragments[TAB_CLOCK] as? ClockFragment)?.updateAlarm()
     }
@@ -48,5 +55,13 @@ class ViewPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
 
     fun updateTimerTabAlarmSound(alarmSound: AlarmSound) {
         (fragments[TAB_TIMER] as? TimerFragment)?.updateAlarmSound(alarmSound)
+    }
+
+    fun updateTimerPosition(timerId: Int) {
+        (fragments[TAB_TIMER] as? TimerFragment)?.updatePosition(timerId)
+    }
+
+    fun startStopWatch() {
+        (fragments[TAB_STOPWATCH] as? StopwatchFragment)?.startStopWatch()
     }
 }

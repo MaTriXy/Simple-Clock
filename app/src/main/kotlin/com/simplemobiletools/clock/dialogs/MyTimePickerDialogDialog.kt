@@ -1,42 +1,41 @@
 package com.simplemobiletools.clock.dialogs
 
-import android.support.v7.app.AlertDialog
-import com.simplemobiletools.clock.R
 import com.simplemobiletools.clock.activities.SimpleActivity
-import com.simplemobiletools.clock.extensions.config
+import com.simplemobiletools.clock.databinding.DialogMyTimePickerBinding
+import com.simplemobiletools.commons.extensions.getAlertDialogBuilder
+import com.simplemobiletools.commons.extensions.getProperTextColor
 import com.simplemobiletools.commons.extensions.setupDialogStuff
-import kotlinx.android.synthetic.main.dialog_my_time_picker.view.*
 
 class MyTimePickerDialogDialog(val activity: SimpleActivity, val initialSeconds: Int, val callback: (result: Int) -> Unit) {
-    private var view = activity.layoutInflater.inflate(R.layout.dialog_my_time_picker, null)
+    private val binding = DialogMyTimePickerBinding.inflate(activity.layoutInflater)
 
     init {
-        view.apply {
-            val textColor = activity.config.textColor
-            arrayOf(my_time_picker_hours, my_time_picker_minutes, my_time_picker_seconds).forEach {
+        binding.apply {
+            val textColor = activity.getProperTextColor()
+            arrayOf(myTimePickerHours, myTimePickerMinutes, myTimePickerSeconds).forEach {
                 it.textColor = textColor
                 it.selectedTextColor = textColor
                 it.dividerColor = textColor
             }
 
-            my_time_picker_hours.value = initialSeconds / 3600
-            my_time_picker_minutes.value = (initialSeconds) / 60 % 60
-            my_time_picker_seconds.value = initialSeconds % 60
+            myTimePickerHours.value = initialSeconds / 3600
+            myTimePickerMinutes.value = (initialSeconds) / 60 % 60
+            myTimePickerSeconds.value = initialSeconds % 60
         }
 
-        AlertDialog.Builder(activity)
-                .setPositiveButton(R.string.ok, { dialog, which -> dialogConfirmed() })
-                .setNegativeButton(R.string.cancel, null)
-                .create().apply {
-                    activity.setupDialogStuff(view, this)
-                }
+        activity.getAlertDialogBuilder()
+            .setPositiveButton(com.simplemobiletools.commons.R.string.ok) { dialog, which -> dialogConfirmed() }
+            .setNegativeButton(com.simplemobiletools.commons.R.string.cancel, null)
+            .apply {
+                activity.setupDialogStuff(binding.root, this)
+            }
     }
 
     private fun dialogConfirmed() {
-        view.apply {
-            val hours = my_time_picker_hours.value
-            val minutes = my_time_picker_minutes.value
-            val seconds = my_time_picker_seconds.value
+        binding.apply {
+            val hours = myTimePickerHours.value
+            val minutes = myTimePickerMinutes.value
+            val seconds = myTimePickerSeconds.value
             callback(hours * 3600 + minutes * 60 + seconds)
         }
     }

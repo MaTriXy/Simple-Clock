@@ -1,11 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Simple Clock</string>
+    <string name="app_name">Simpel klocka</string>
     <string name="app_launcher_name">Klocka</string>
     <string name="time_zone">Tidszon</string>
     <string name="vibrate">Vibrera</string>
-    <string name="label">Etikett</string>
     <string name="no_days_selected">Inga dagar har valts</string>
+    <string name="clock">Klocka</string>
     <string name="timer">Timer</string>
+    <string name="stopwatch">Stoppur</string>
+    <string name="start_stopwatch">Starta stoppur</string>
     <string name="lap">Varv</string>
     <string name="stopwatch_stopped">Stoppuret har stoppats</string>
     <string name="timer_stopped">Timern har stoppats</string>
@@ -14,7 +17,30 @@
     <string name="clock_and_date">Klocka och datum</string>
     <string name="use_text_shadow">Använd textskugga</string>
     <string name="swipe_right_to_dismiss">Dra åt höger för att Stänga av eller åt vänster för att Snooza.</string>
-
+    <string name="sort_by_creation_order">Skapelseordning</string>
+    <string name="sort_by_alarm_time">Alarmtid</string>
+    <string name="sort_by_day_and_alarm_time">Dag och alarmtid</string>
+    <string name="analogue_clock">Analog klocka</string>
+    <string name="digital_clock">Digital klocka</string>
+    <string name="alarm_dismissed">Alarmet har avvisats</string>
+    <string name="select_timer_to_dismiss">Välj timer att avfärda</string>
+    <string name="select_alarm_to_dismiss">Välj alarm att avfärda</string>
+    <string name="alarm_created">Alarm skapat</string>
+    <string name="alarm_snoozed">Alarmet snoozar %s</string>
+    <string name="no_alarms_found">Inga alarm hittades</string>
+    <string name="add_alarm">Lägg till alarm</string>
+    <string name="no_timers_found">Inga timers hittades</string>
+    <string name="add_timer">Lägg till timer</string>
+    <string name="upcoming_alarm">Kommande alarm</string>
+    <string name="early_alarm_dismissal">Tidig avstängning av alarm</string>
+    <!--Timer-->
+    <string name="timers_notification_msg">Timers är igång</string>
+    <string name="timer_single_notification_label_msg">Timer för %s är igång</string>
+    <string name="new_timer">Ny timer</string>
+    <plurals name="timer_notification_msg">
+        <item quantity="one">%d timer är igång</item>
+        <item quantity="other">%d timers är igång</item>
+    </plurals>
     <!-- Settings -->
     <string name="clock_tab">Fliken Klocka</string>
     <string name="alarm_tab">Fliken Alarm</string>
@@ -22,32 +48,9 @@
     <string name="timer_tab">Fliken Timer</string>
     <string name="show_seconds">Visa sekunder</string>
     <string name="increase_volume_gradually">Höj volymen gradvis</string>
-
     <!-- FAQ -->
-    <string name="faq_1_title">How can I change lap sorting at the stopwatch tab?</string>
-    <string name="faq_1_text">Just click on any of the columns, that will make the laps be sorted by the given column. With additional clicks you can toggle between ascending and descending sorting.</string>
-
-    <!-- Strings displayed only on Google Playstore. Optional, but good to have -->
-    <!-- Short description has to have less than 80 chars -->
-    <string name="app_short_description">En kombination av klocka, alarm, stoppur och timer.</string>
-    <string name="app_long_description">
-        Appen har flera tidsrelaterade funktioner.
-
-        Du kan visa tider i andra tidszoner vid klockan, eller använda den enkla och anpassningsbara klockwidgeten. Du kan anpassa widgetens textfärg, bakgrundsfärg och bakgrundsgenomskinlighet.
-
-        Alarmet har alla förväntade funktioner. Du kan välja dagar, aktivera eller inaktivera vibrationer, välja en ringsignal, snooza och lägga till en anpassad etikett.
-
-        Med stoppuret kan du enkelt mäta en längre tidsperiod eller enskilda varv. Du kan också sortera varven efter varvtid och aktivera vibrationer vid knapptryckningar.
-
-        Du kan enkelt ställa in en timer som meddelar dig om en händelse. Du kan ändra timerns ringsignal och aktivera eller inaktivera vibrationer.
-
-        Du kan också hindra att viloläget aktiveras när appen körs i förgrunden.
-
-        Innehåller ingen reklam eller onödiga behörigheter. Den har helt öppen källkod och anpassningsbara färger.
-
-        Denna app är bara en del av en större serie appar. Du hittar resten av dem på https://www.simplemobiletools.com
-    </string>
-
+    <string name="faq_1_title">Hur kan jag ändra sortering av varv i fliken stoppur\?</string>
+    <string name="faq_1_text">Klicka bara på någon av kolumnerna för att sortera varven efter den aktuella kolumnen. Med ytterligare klick kan du växla mellan stigande och fallande sortering.</string>
     <!--
         Haven't found some strings? There's more at
         https://github.com/SimpleMobileTools/Simple-Commons/tree/master/commons/src/main/res

@@ -1,73 +1,117 @@
 package com.simplemobiletools.clock.activities
 
-import android.annotation.TargetApi
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ShortcutInfo
 import android.graphics.drawable.ColorDrawable
-import android.os.Build
+import android.graphics.drawable.Icon
+import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.view.WindowManager
 import com.simplemobiletools.clock.BuildConfig
 import com.simplemobiletools.clock.R
 import com.simplemobiletools.clock.adapters.ViewPagerAdapter
-import com.simplemobiletools.clock.extensions.config
-import com.simplemobiletools.clock.extensions.dbHelper
-import com.simplemobiletools.clock.extensions.getNextAlarm
-import com.simplemobiletools.clock.extensions.rescheduleEnabledAlarms
+import com.simplemobiletools.clock.databinding.ActivityMainBinding
+import com.simplemobiletools.clock.extensions.*
 import com.simplemobiletools.clock.helpers.*
+import com.simplemobiletools.commons.databinding.BottomTablayoutItemBinding
 import com.simplemobiletools.commons.extensions.*
-import com.simplemobiletools.commons.helpers.LICENSE_NUMBER_PICKER
-import com.simplemobiletools.commons.helpers.LICENSE_STETHO
+import com.simplemobiletools.commons.helpers.*
 import com.simplemobiletools.commons.models.FAQItem
-import kotlinx.android.synthetic.main.activity_main.*
+import me.grantland.widget.AutofitHelper
 
 class MainActivity : SimpleActivity() {
     private var storedTextColor = 0
     private var storedBackgroundColor = 0
     private var storedPrimaryColor = 0
+    private val binding: ActivityMainBinding by viewBinding(ActivityMainBinding::inflate)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        isMaterialActivity = true
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(binding.root)
         appLaunched(BuildConfig.APPLICATION_ID)
+        setupOptionsMenu()
+        refreshMenuItems()
 
-        // just get a reference to the database to make sure it is created properly
-        dbHelper
+        updateMaterialActivityViews(binding.mainCoordinator, binding.mainHolder, useTransparentNavigation = false, useTopSearchMenu = false)
 
         storeStateVariables()
         initFragments()
+        setupTabs()
+        updateWidgets()
 
-        if (getNextAlarm().isEmpty()) {
-            Thread {
-                rescheduleEnabledAlarms()
-            }.start()
+        getEnabledAlarms { enabledAlarms ->
+            if (enabledAlarms.isNullOrEmpty()) {
+                ensureBackgroundThread {
+                    rescheduleEnabledAlarms()
+                }
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        val configTextColor = config.textColor
+        setupToolbar(binding.mainToolbar, statusBarColor = getProperBackgroundColor())
+        val configTextColor = getProperTextColor()
         if (storedTextColor != configTextColor) {
-            getInactiveTabIndexes(view_pager.currentItem).forEach {
-                main_tabs_holder.getTabAt(it)?.icon?.applyColorFilter(configTextColor)
+            getInactiveTabIndexes(binding.viewPager.currentItem).forEach {
+                binding.mainTabsHolder.getTabAt(it)?.icon?.applyColorFilter(configTextColor)
             }
         }
 
-        val configBackgroundColor = config.backgroundColor
+        val configBackgroundColor = getProperBackgroundColor()
         if (storedBackgroundColor != configBackgroundColor) {
-            main_tabs_holder.background = ColorDrawable(configBackgroundColor)
+            binding.mainTabsHolder.background = ColorDrawable(configBackgroundColor)
         }
 
-        val configPrimaryColor = config.primaryColor
+        val configPrimaryColor = getProperPrimaryColor()
         if (storedPrimaryColor != configPrimaryColor) {
-            main_tabs_holder.setSelectedTabIndicatorColor(getAdjustedPrimaryColor())
-            main_tabs_holder.getTabAt(view_pager.currentItem)?.icon?.applyColorFilter(getAdjustedPrimaryColor())
+            binding.mainTabsHolder.setSelectedTabIndicatorColor(getProperPrimaryColor())
+            binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.icon?.applyColorFilter(getProperPrimaryColor())
         }
 
         if (config.preventPhoneFromSleeping) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+
+        setupTabColors()
+        checkShortcuts()
+    }
+
+    @SuppressLint("NewApi")
+    private fun checkShortcuts() {
+        val appIconColor = config.appIconColor
+        if (isNougatMR1Plus() && config.lastHandledShortcutColor != appIconColor) {
+            val launchDialpad = getLaunchStopwatchShortcut(appIconColor)
+
+            try {
+                shortcutManager.dynamicShortcuts = listOf(launchDialpad)
+                config.lastHandledShortcutColor = appIconColor
+            } catch (ignored: Exception) {
+            }
+        }
+    }
+
+    @SuppressLint("NewApi")
+    private fun getLaunchStopwatchShortcut(appIconColor: Int): ShortcutInfo {
+        val newEvent = getString(R.string.start_stopwatch)
+        val drawable = resources.getDrawable(R.drawable.shortcut_stopwatch)
+        (drawable as LayerDrawable).findDrawableByLayerId(R.id.shortcut_stopwatch_background).applyColorFilter(appIconColor)
+        val bmp = drawable.convertToBitmap()
+
+        val intent = Intent(this, SplashActivity::class.java).apply {
+            putExtra(OPEN_TAB, TAB_STOPWATCH)
+            putExtra(TOGGLE_STOPWATCH, true)
+            action = STOPWATCH_TOGGLE_ACTION
+        }
+
+        return ShortcutInfo.Builder(this, STOPWATCH_SHORTCUT_ID)
+            .setShortLabel(newEvent)
+            .setLongLabel(newEvent)
+            .setIcon(Icon.createWithBitmap(bmp))
+            .setIntent(intent)
+            .build()
     }
 
     override fun onPause() {
@@ -76,39 +120,50 @@ class MainActivity : SimpleActivity() {
         if (config.preventPhoneFromSleeping) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+        config.lastUsedViewPagerPage = binding.viewPager.currentItem
     }
 
-    override fun onStop() {
-        super.onStop()
-        config.lastUsedViewPagerPage = view_pager.currentItem
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.settings -> launchSettings()
-            R.id.about -> launchAbout()
-            else -> return super.onOptionsItemSelected(item)
+    private fun setupOptionsMenu() {
+        binding.mainToolbar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.sort -> getViewPagerAdapter()?.showAlarmSortDialog()
+                R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
+                R.id.settings -> launchSettings()
+                R.id.about -> launchAbout()
+                else -> return@setOnMenuItemClickListener false
+            }
+            return@setOnMenuItemClickListener true
         }
-        return true
+    }
+
+    private fun refreshMenuItems() {
+        binding.mainToolbar.menu.apply {
+            findItem(R.id.sort).isVisible = binding.viewPager.currentItem == TAB_ALARM
+            findItem(R.id.more_apps_from_us).isVisible = !resources.getBoolean(com.simplemobiletools.commons.R.bool.hide_google_relations)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         if (intent.extras?.containsKey(OPEN_TAB) == true) {
-            view_pager.setCurrentItem(intent.getIntExtra(OPEN_TAB, TAB_CLOCK), false)
+            val tabToOpen = intent.getIntExtra(OPEN_TAB, TAB_CLOCK)
+            binding.viewPager.setCurrentItem(tabToOpen, false)
+            if (tabToOpen == TAB_TIMER) {
+                val timerId = intent.getIntExtra(TIMER_ID, INVALID_TIMER_ID)
+                (binding.viewPager.adapter as ViewPagerAdapter).updateTimerPosition(timerId)
+            }
+            if (tabToOpen == TAB_STOPWATCH) {
+                if (intent.getBooleanExtra(TOGGLE_STOPWATCH, false)) {
+                    (binding.viewPager.adapter as ViewPagerAdapter).startStopWatch()
+                }
+            }
         }
+        super.onNewIntent(intent)
     }
 
     private fun storeStateVariables() {
-        config.apply {
-            storedTextColor = textColor
-            storedBackgroundColor = backgroundColor
-            storedPrimaryColor = primaryColor
-        }
+        storedTextColor = getProperTextColor()
+        storedBackgroundColor = getProperBackgroundColor()
+        storedPrimaryColor = getProperPrimaryColor()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
@@ -118,11 +173,10 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.KITKAT)
     private fun storeNewAlarmSound(resultData: Intent) {
         val newAlarmSound = storeNewYourAlarmSound(resultData)
 
-        when (view_pager.currentItem) {
+        when (binding.viewPager.currentItem) {
             TAB_ALARM -> getViewPagerAdapter()?.updateAlarmTabAlarmSound(newAlarmSound)
             TAB_TIMER -> getViewPagerAdapter()?.updateTimerTabAlarmSound(newAlarmSound)
         }
@@ -132,61 +186,112 @@ class MainActivity : SimpleActivity() {
         getViewPagerAdapter()?.updateClockTabAlarm()
     }
 
-    private fun getViewPagerAdapter() = view_pager.adapter as? ViewPagerAdapter
+    private fun getViewPagerAdapter() = binding.viewPager.adapter as? ViewPagerAdapter
 
     private fun initFragments() {
-        view_pager.adapter = ViewPagerAdapter(supportFragmentManager)
-        view_pager.onPageChangeListener {
-            main_tabs_holder.getTabAt(it)?.select()
+        val viewPagerAdapter = ViewPagerAdapter(supportFragmentManager)
+        binding.viewPager.adapter = viewPagerAdapter
+        binding.viewPager.onPageChangeListener {
+            binding.mainTabsHolder.getTabAt(it)?.select()
+            refreshMenuItems()
         }
 
         val tabToOpen = intent.getIntExtra(OPEN_TAB, config.lastUsedViewPagerPage)
         intent.removeExtra(OPEN_TAB)
-        view_pager.currentItem = tabToOpen
-        view_pager.offscreenPageLimit = TABS_COUNT - 1
-        main_tabs_holder.onTabSelectionChanged(
-                tabUnselectedAction = {
-                    it.icon?.applyColorFilter(config.textColor)
-                },
-                tabSelectedAction = {
-                    view_pager.currentItem = it.position
-                    it.icon?.applyColorFilter(getAdjustedPrimaryColor())
-                }
-        )
+        if (tabToOpen == TAB_TIMER) {
+            val timerId = intent.getIntExtra(TIMER_ID, INVALID_TIMER_ID)
+            viewPagerAdapter.updateTimerPosition(timerId)
+        }
 
-        setupTabColors(tabToOpen)
+        if (tabToOpen == TAB_STOPWATCH) {
+            config.toggleStopwatch = intent.getBooleanExtra(TOGGLE_STOPWATCH, false)
+        }
+
+        binding.viewPager.offscreenPageLimit = TABS_COUNT - 1
+        binding.viewPager.currentItem = tabToOpen
     }
 
-    private fun setupTabColors(lastUsedTab: Int) {
-        main_tabs_holder.apply {
-            background = ColorDrawable(config.backgroundColor)
-            setSelectedTabIndicatorColor(getAdjustedPrimaryColor())
-            getTabAt(lastUsedTab)?.apply {
-                select()
-                icon?.applyColorFilter(getAdjustedPrimaryColor())
-            }
+    private fun setupTabs() {
+        binding.mainTabsHolder.removeAllTabs()
+        val tabDrawables = arrayOf(
+            com.simplemobiletools.commons.R.drawable.ic_clock_vector,
+            R.drawable.ic_alarm_vector,
+            R.drawable.ic_stopwatch_vector,
+            R.drawable.ic_hourglass_vector
+        )
+        val tabLabels = arrayOf(R.string.clock, com.simplemobiletools.commons.R.string.alarm, R.string.stopwatch, R.string.timer)
 
-            getInactiveTabIndexes(lastUsedTab).forEach {
-                getTabAt(it)?.icon?.applyColorFilter(config.textColor)
+        tabDrawables.forEachIndexed { i, drawableId ->
+            binding.mainTabsHolder.newTab().setCustomView(com.simplemobiletools.commons.R.layout.bottom_tablayout_item).apply tab@{
+                customView?.let { BottomTablayoutItemBinding.bind(it) }?.apply {
+                    tabItemIcon.setImageDrawable(getDrawable(drawableId))
+                    tabItemLabel.setText(tabLabels[i])
+                    AutofitHelper.create(tabItemLabel)
+                    binding.mainTabsHolder.addTab(this@tab)
+                }
             }
         }
+
+        binding.mainTabsHolder.onTabSelectionChanged(
+            tabUnselectedAction = {
+                updateBottomTabItemColors(it.customView, false, getDeselectedTabDrawableIds()[it.position])
+            },
+            tabSelectedAction = {
+                binding.viewPager.currentItem = it.position
+                updateBottomTabItemColors(it.customView, true, getSelectedTabDrawableIds()[it.position])
+            }
+        )
+    }
+
+    private fun setupTabColors() {
+        val activeView = binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.customView
+        updateBottomTabItemColors(activeView, true, getSelectedTabDrawableIds()[binding.viewPager.currentItem])
+
+        getInactiveTabIndexes(binding.viewPager.currentItem).forEach { index ->
+            val inactiveView = binding.mainTabsHolder.getTabAt(index)?.customView
+            updateBottomTabItemColors(inactiveView, false, getDeselectedTabDrawableIds()[index])
+        }
+
+        binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
+        val bottomBarColor = getBottomNavigationBackgroundColor()
+        binding.mainTabsHolder.setBackgroundColor(bottomBarColor)
+        updateNavigationBarColor(bottomBarColor)
     }
 
     private fun getInactiveTabIndexes(activeIndex: Int) = arrayListOf(0, 1, 2, 3).filter { it != activeIndex }
+
+    private fun getSelectedTabDrawableIds() = arrayOf(
+        com.simplemobiletools.commons.R.drawable.ic_clock_filled_vector,
+        R.drawable.ic_alarm_filled_vector,
+        R.drawable.ic_stopwatch_filled_vector,
+        R.drawable.ic_hourglass_filled_vector
+    )
+
+    private fun getDeselectedTabDrawableIds() = arrayOf(
+        com.simplemobiletools.commons.R.drawable.ic_clock_vector,
+        R.drawable.ic_alarm_vector,
+        R.drawable.ic_stopwatch_vector,
+        R.drawable.ic_hourglass_vector
+    )
 
     private fun launchSettings() {
         startActivity(Intent(applicationContext, SettingsActivity::class.java))
     }
 
     private fun launchAbout() {
-        val licenses = LICENSE_STETHO or LICENSE_NUMBER_PICKER
+        val licenses = LICENSE_STETHO or LICENSE_NUMBER_PICKER or LICENSE_RTL or LICENSE_AUTOFITTEXTVIEW
 
         val faqItems = arrayListOf(
-                FAQItem(R.string.faq_1_title, R.string.faq_1_text),
-                FAQItem(R.string.faq_1_title_commons, R.string.faq_1_text_commons),
-                FAQItem(R.string.faq_4_title_commons, R.string.faq_4_text_commons),
-                FAQItem(R.string.faq_2_title_commons, R.string.faq_2_text_commons)
+            FAQItem(R.string.faq_1_title, R.string.faq_1_text),
+            FAQItem(com.simplemobiletools.commons.R.string.faq_1_title_commons, com.simplemobiletools.commons.R.string.faq_1_text_commons),
+            FAQItem(com.simplemobiletools.commons.R.string.faq_4_title_commons, com.simplemobiletools.commons.R.string.faq_4_text_commons),
+            FAQItem(com.simplemobiletools.commons.R.string.faq_9_title_commons, com.simplemobiletools.commons.R.string.faq_9_text_commons)
         )
+
+        if (!resources.getBoolean(com.simplemobiletools.commons.R.bool.hide_google_relations)) {
+            faqItems.add(FAQItem(com.simplemobiletools.commons.R.string.faq_2_title_commons, com.simplemobiletools.commons.R.string.faq_2_text_commons))
+            faqItems.add(FAQItem(com.simplemobiletools.commons.R.string.faq_6_title_commons, com.simplemobiletools.commons.R.string.faq_6_text_commons))
+        }
 
         startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
     }

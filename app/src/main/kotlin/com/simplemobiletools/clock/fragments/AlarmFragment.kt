@@ -1,64 +1,71 @@
 package com.simplemobiletools.clock.fragments
 
 import android.os.Bundle
-import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.simplemobiletools.clock.R
+import androidx.fragment.app.Fragment
 import com.simplemobiletools.clock.activities.MainActivity
 import com.simplemobiletools.clock.activities.SimpleActivity
 import com.simplemobiletools.clock.adapters.AlarmsAdapter
+import com.simplemobiletools.clock.databinding.FragmentAlarmBinding
+import com.simplemobiletools.clock.dialogs.ChangeAlarmSortDialog
 import com.simplemobiletools.clock.dialogs.EditAlarmDialog
 import com.simplemobiletools.clock.extensions.*
-import com.simplemobiletools.clock.helpers.DEFAULT_ALARM_MINUTES
+import com.simplemobiletools.clock.helpers.*
 import com.simplemobiletools.clock.interfaces.ToggleAlarmInterface
 import com.simplemobiletools.clock.models.Alarm
+import com.simplemobiletools.clock.models.AlarmEvent
+import com.simplemobiletools.commons.extensions.getProperBackgroundColor
+import com.simplemobiletools.commons.extensions.getProperTextColor
 import com.simplemobiletools.commons.extensions.toast
 import com.simplemobiletools.commons.extensions.updateTextColors
+import com.simplemobiletools.commons.helpers.SORT_BY_DATE_CREATED
+import com.simplemobiletools.commons.helpers.ensureBackgroundThread
 import com.simplemobiletools.commons.models.AlarmSound
-import kotlinx.android.synthetic.main.fragment_alarm.view.*
-import java.util.*
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 
 class AlarmFragment : Fragment(), ToggleAlarmInterface {
     private var alarms = ArrayList<Alarm>()
     private var currentEditAlarmDialog: EditAlarmDialog? = null
 
-    private var storedTextColor = 0
-
-    lateinit var view: ViewGroup
+    private lateinit var binding: FragmentAlarmBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        storeStateVariables()
-        view = inflater.inflate(R.layout.fragment_alarm, container, false) as ViewGroup
-        return view
+        binding = FragmentAlarmBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        EventBus.getDefault().register(this)
+    }
+
+    override fun onDestroy() {
+        EventBus.getDefault().unregister(this)
+        super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
         setupViews()
+    }
 
-        val configTextColor = context!!.config.textColor
-        if (storedTextColor != configTextColor) {
-            (view.alarms_list.adapter as AlarmsAdapter).updateTextColor(configTextColor)
+    fun showSortingDialog() {
+        ChangeAlarmSortDialog(activity as SimpleActivity) {
+            setupAlarms()
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        storeStateVariables()
-    }
-
-    private fun storeStateVariables() {
-        storedTextColor = context!!.config.textColor
-    }
-
     private fun setupViews() {
-        view.apply {
-            context!!.updateTextColors(alarm_fragment)
-            alarm_fab.setOnClickListener {
-                val newAlarm = context.createNewAlarm(DEFAULT_ALARM_MINUTES, 0)
+        binding.apply {
+            requireContext().updateTextColors(alarmFragment)
+            alarmFab.setOnClickListener {
+                val newAlarm = root.context.createNewAlarm(DEFAULT_ALARM_MINUTES, 0)
                 newAlarm.isEnabled = true
+                newAlarm.days = getTomorrowBit()
                 openEditAlarm(newAlarm)
             }
         }
@@ -68,15 +75,51 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
 
     private fun setupAlarms() {
         alarms = context?.dbHelper?.getAlarms() ?: return
-        val currAdapter = view.alarms_list.adapter
+
+        when (requireContext().config.alarmSort) {
+            SORT_BY_ALARM_TIME -> alarms.sortBy { it.timeInMinutes }
+            SORT_BY_DATE_CREATED -> alarms.sortBy { it.id }
+            SORT_BY_DATE_AND_TIME -> alarms.sortWith(compareBy<Alarm> {
+                requireContext().firstDayOrder(it.days)
+            }.thenBy {
+                it.timeInMinutes
+            })
+        }
+        context?.getEnabledAlarms { enabledAlarms ->
+            if (enabledAlarms.isNullOrEmpty()) {
+                val removedAlarms = mutableListOf<Alarm>()
+                alarms.forEach {
+                    if (it.days == TODAY_BIT && it.isEnabled && it.timeInMinutes <= getCurrentDayMinutes()) {
+                        it.isEnabled = false
+                        ensureBackgroundThread {
+                            if (it.oneShot) {
+                                it.isEnabled = false
+                                context?.dbHelper?.deleteAlarms(arrayListOf(it))
+                                removedAlarms.add(it)
+                            } else {
+                                context?.dbHelper?.updateAlarmEnabledState(it.id, false)
+                            }
+                        }
+                    }
+                }
+                alarms.removeAll(removedAlarms)
+            }
+        }
+
+        val currAdapter = binding.alarmsList.adapter
         if (currAdapter == null) {
-            AlarmsAdapter(activity as SimpleActivity, alarms, this, view.alarms_list) {
+            AlarmsAdapter(activity as SimpleActivity, alarms, this, binding.alarmsList) {
                 openEditAlarm(it as Alarm)
             }.apply {
-                view.alarms_list.adapter = this
+                binding.alarmsList.adapter = this
             }
         } else {
-            (currAdapter as AlarmsAdapter).updateItems(alarms)
+            (currAdapter as AlarmsAdapter).apply {
+                updatePrimaryColor()
+                updateBackgroundColor(requireContext().getProperBackgroundColor())
+                updateTextColor(requireContext().getProperTextColor())
+                updateItems(this@AlarmFragment.alarms)
+            }
         }
     }
 
@@ -90,14 +133,24 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
     }
 
     override fun alarmToggled(id: Int, isEnabled: Boolean) {
-        if (context!!.dbHelper.updateAlarmEnabledState(id, isEnabled)) {
-            val alarm = alarms.firstOrNull { it.id == id } ?: return
-            alarm.isEnabled = isEnabled
-            checkAlarmState(alarm)
-        } else {
-            activity!!.toast(R.string.unknown_error_occurred)
+        (activity as SimpleActivity).handleFullScreenNotificationsPermission { granted ->
+            if (granted) {
+                if (requireContext().dbHelper.updateAlarmEnabledState(id, isEnabled)) {
+                    val alarm = alarms.firstOrNull { it.id == id } ?: return@handleFullScreenNotificationsPermission
+                    alarm.isEnabled = isEnabled
+                    checkAlarmState(alarm)
+                    if (!alarm.isEnabled && alarm.oneShot) {
+                        requireContext().dbHelper.deleteAlarms(arrayListOf(alarm))
+                        setupAlarms()
+                    }
+                } else {
+                    requireActivity().toast(com.simplemobiletools.commons.R.string.unknown_error_occurred)
+                }
+                requireContext().updateWidgets()
+            } else {
+                setupAlarms()
+            }
         }
-        context!!.updateWidgets()
     }
 
     private fun checkAlarmState(alarm: Alarm) {
@@ -111,5 +164,10 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
 
     fun updateAlarmSound(alarmSound: AlarmSound) {
         currentEditAlarmDialog?.updateSelectedAlarmSound(alarmSound)
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onMessageEvent(event: AlarmEvent.Refresh) {
+        setupAlarms()
     }
 }

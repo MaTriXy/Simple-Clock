@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import com.simplemobiletools.clock.R
 import com.simplemobiletools.clock.activities.SimpleActivity
+import com.simplemobiletools.clock.databinding.ItemTimeZoneBinding
 import com.simplemobiletools.clock.extensions.config
 import com.simplemobiletools.clock.extensions.getFormattedDate
 import com.simplemobiletools.clock.extensions.getFormattedTime
@@ -13,11 +14,12 @@ import com.simplemobiletools.commons.adapters.MyRecyclerViewAdapter
 import com.simplemobiletools.commons.extensions.beGone
 import com.simplemobiletools.commons.extensions.beVisible
 import com.simplemobiletools.commons.views.MyRecyclerView
-import kotlinx.android.synthetic.main.item_time_zone.view.*
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.TimeZone
 
 class TimeZonesAdapter(activity: SimpleActivity, var timeZones: ArrayList<MyTimeZone>, recyclerView: MyRecyclerView, itemClick: (Any) -> Unit) :
-        MyRecyclerViewAdapter(activity, recyclerView, null, itemClick) {
+    MyRecyclerViewAdapter(activity, recyclerView, itemClick) {
 
     var todayDateString = activity.getFormattedDate(Calendar.getInstance())
 
@@ -29,14 +31,8 @@ class TimeZonesAdapter(activity: SimpleActivity, var timeZones: ArrayList<MyTime
 
     override fun prepareActionMode(menu: Menu) {}
 
-    override fun prepareItemSelection(viewHolder: ViewHolder) {}
-
-    override fun markViewHolderSelection(select: Boolean, viewHolder: ViewHolder?) {
-        viewHolder?.itemView?.time_zone_frame?.isSelected = select
-    }
-
     override fun actionItemPressed(id: Int) {
-        if (selectedPositions.isEmpty()) {
+        if (selectedKeys.isEmpty()) {
             return
         }
 
@@ -49,14 +45,24 @@ class TimeZonesAdapter(activity: SimpleActivity, var timeZones: ArrayList<MyTime
 
     override fun getIsItemSelectable(position: Int) = true
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = createViewHolder(R.layout.item_time_zone, parent)
+    override fun getItemSelectionKey(position: Int) = timeZones.getOrNull(position)?.id
+
+    override fun getItemKeyPosition(key: Int) = timeZones.indexOfFirst { it.id == key }
+
+    override fun onActionModeCreated() {}
+
+    override fun onActionModeDestroyed() {}
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        return createViewHolder(ItemTimeZoneBinding.inflate(layoutInflater, parent, false).root)
+    }
 
     override fun onBindViewHolder(holder: MyRecyclerViewAdapter.ViewHolder, position: Int) {
         val timeZone = timeZones[position]
-        val view = holder.bindView(timeZone, true, true) { itemView, layoutPosition ->
+        holder.bindView(timeZone, true, true) { itemView, layoutPosition ->
             setupView(itemView, timeZone)
         }
-        bindViewHolder(holder, position, view)
+        bindViewHolder(holder)
     }
 
     override fun getItemCount() = timeZones.size
@@ -72,21 +78,23 @@ class TimeZonesAdapter(activity: SimpleActivity, var timeZones: ArrayList<MyTime
     }
 
     private fun deleteItems() {
-        val timeZonesToRemove = ArrayList<MyTimeZone>()
-        val timeZoneIDsToRemove = ArrayList<String>()
-        selectedPositions.sortedDescending().forEach {
-            val timeZone = timeZones[it]
-            timeZonesToRemove.add(timeZone)
-            timeZoneIDsToRemove.add(timeZone.id.toString())
+        val timeZonesToRemove = ArrayList<MyTimeZone>(selectedKeys.size)
+        val timeZoneIDsToRemove = ArrayList<String>(selectedKeys.size)
+        val positions = getSelectedItemPositions()
+        getSelectedItems().forEach {
+            timeZonesToRemove.add(it)
+            timeZoneIDsToRemove.add(it.id.toString())
         }
 
         timeZones.removeAll(timeZonesToRemove)
-        removeSelectedItems()
+        removeSelectedItems(positions)
 
         val selectedTimeZones = activity.config.selectedTimeZones
         val newTimeZones = selectedTimeZones.filter { !timeZoneIDsToRemove.contains(it) }.toHashSet()
         activity.config.selectedTimeZones = newTimeZones
     }
+
+    private fun getSelectedItems() = timeZones.filter { selectedKeys.contains(it.id) } as ArrayList<MyTimeZone>
 
     private fun setupView(view: View, timeZone: MyTimeZone) {
         val currTimeZone = TimeZone.getTimeZone(timeZone.zoneName)
@@ -100,19 +108,21 @@ class TimeZonesAdapter(activity: SimpleActivity, var timeZones: ArrayList<MyTime
         val formattedTime = activity.getFormattedTime(passedSeconds, false, false)
         val formattedDate = activity.getFormattedDate(calendar)
 
-        view.apply {
-            time_zone_title.text = timeZone.title
-            time_zone_title.setTextColor(textColor)
+        val isSelected = selectedKeys.contains(timeZone.id)
+        ItemTimeZoneBinding.bind(view).apply {
+            timeZoneFrame.isSelected = isSelected
+            timeZoneTitle.text = timeZone.title
+            timeZoneTitle.setTextColor(textColor)
 
-            time_zone_time.text = formattedTime
-            time_zone_time.setTextColor(textColor)
+            timeZoneTime.text = formattedTime
+            timeZoneTime.setTextColor(textColor)
 
             if (formattedDate != todayDateString) {
-                time_zone_date.beVisible()
-                time_zone_date.text = formattedDate
-                time_zone_date.setTextColor(textColor)
+                timeZoneDate.beVisible()
+                timeZoneDate.text = formattedDate
+                timeZoneDate.setTextColor(textColor)
             } else {
-                time_zone_date.beGone()
+                timeZoneDate.beGone()
             }
         }
     }

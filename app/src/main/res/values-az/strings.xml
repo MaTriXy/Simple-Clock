@@ -3,9 +3,11 @@
     <string name="app_launcher_name">Saat</string>
     <string name="time_zone">Vaxt zonası</string>
     <string name="vibrate">Titrət</string>
-    <string name="label">Etiket</string>
     <string name="no_days_selected">Gün seçilməyib</string>
+    <string name="clock">Clock</string>
     <string name="timer">Sayğac</string>
+    <string name="stopwatch">Stopwatch</string>
+    <string name="start_stopwatch">Start stopwatch</string>
     <string name="lap">Dövrə</string>
     <string name="stopwatch_stopped">Saniyəölçən dayandı</string>
     <string name="timer_stopped">Sayğaç dayandı</string>
@@ -14,6 +16,32 @@
     <string name="clock_and_date">Saat və zaman</string>
     <string name="use_text_shadow">Mətn kölgəsini işlət</string>
     <string name="swipe_right_to_dismiss">Buraxmaq üçün sağa, Dondurmaq üçün sola sürüşdür.</string>
+    <string name="sort_by_creation_order">Creation order</string>
+    <string name="sort_by_alarm_time">Alarm time</string>
+    <string name="sort_by_day_and_alarm_time">Day and Alarm time</string>
+    <string name="analogue_clock">Analogue clock</string>
+    <string name="digital_clock">Digital clock</string>
+    <string name="alarm_dismissed">Alarm dismissed</string>
+    <string name="select_timer_to_dismiss">Select timer to dismiss</string>
+    <string name="select_alarm_to_dismiss">Select alarm to dismiss</string>
+    <string name="alarm_created">Alarm created</string>
+    <string name="alarm_snoozed">Alarm snoozed by %s</string>
+    <string name="no_alarms_found">No alarms found</string>
+    <string name="add_alarm">Add alarm</string>
+    <string name="no_timers_found">No timers found</string>
+    <string name="add_timer">Add timer</string>
+    <string name="upcoming_alarm">Upcoming alarm</string>
+    <string name="early_alarm_dismissal">Early alarm dismissal</string>
+
+    <!--Timer-->
+    <string name="timers_notification_msg">Timers are running</string>
+    <string name="timer_single_notification_label_msg">Timer for %s is running</string>
+    <string name="new_timer">New Timer</string>
+
+    <plurals name="timer_notification_msg">
+        <item quantity="one">%d timer is running</item>
+        <item quantity="other">%d timers are running</item>
+    </plurals>
 
     <!-- Settings -->
     <string name="clock_tab">Saat bölməsi</string>
@@ -26,28 +54,6 @@
     <!-- FAQ -->
     <string name="faq_1_title">How can I change lap sorting at the stopwatch tab?</string>
     <string name="faq_1_text">Just click on any of the columns, that will make the laps be sorted by the given column. With additional clicks you can toggle between ascending and descending sorting.</string>
-
-    <!-- Strings displayed only on Google Playstore. Optional, but good to have -->
-    <!-- Short description has to have less than 80 chars -->
-    <string name="app_short_description">Saat, sayğaç və saniyəölçənin birləşməsi.</string>
-    <string name="app_long_description">
-        Bu tətbiqin zamanla əlaqədar bir çox xüsusiyyəti mövcuddur.
-
-        At the clock you can enable displaying times from other timezones, or use the simple, but customizable clock widget. The text color of the widget can be customized, as well as the color and the alpha of the background.
-
-        The alarm contains all the expected features as day selecting, vibration toggling, ringtone selecting, snooze or adding a custom label.
-
-        With the stopwatch you can easily measure a longer period of time, or individual laps. You can sort the laps by lap time, it contains optional vibrations on button presses too, just to let you know that the button was pressed, even if you cannot look at the device.
-
-        You can easily setup a timer to be notified of some event. You can both change its ringtone, or toggle vibrations.
-
-        Additional features include for example preventing the device from falling asleep while the app is in foreground.
-
-        Contains no ads or unnecessary permissions. It is fully opensource, provides customizable colors.
-
-        This app is just one piece of a bigger series of apps. You can find the rest of them at https://www.simplemobiletools.com
-    </string>
-
     <!--
         Haven't found some strings? There's more at
         https://github.com/SimpleMobileTools/Simple-Commons/tree/master/commons/src/main/res
